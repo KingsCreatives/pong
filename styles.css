@@ -7,8 +7,9 @@ body {
 }
 
 canvas {
-  margin-top: 25px;
+  margin-top: 20px;
   z-index: 10;
+  max-height: 95vh;
 }
 
 .game-over-container {
