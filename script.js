@@ -1,223 +1,203 @@
 const { body } = document;
-const canvas = document.createElement("canvas");
-const ctx = canvas.getContext("2d");
-
-const width = 500;
-const height = 700;
-const screenWidth = window.innerWidth;
-const canvasPosition = screenWidth / 2 - width / 2;
-const isMobile = window.matchMedia(`(max-width: 600px)`);
-const gameOverElement = document.createElement("div");
+const gameCanvas = document.createElement("canvas");
+const gameContext = gameCanvas.getContext("2d");
+const canvasWidth = 500;
+const canvasHeight = 700;
+const screenWidth = window.screen.width;
+const canvasXPosition = screenWidth / 2 - canvasWidth / 2;
+const isMobileDevice = window.matchMedia("(max-width: 600px)");
+const endGameElement = document.createElement("div");
 
 const paddleHeight = 10;
 const paddleWidth = 50;
-const paddleDifference = 25;
-let paddleBottomX = 225;
-let paddleTopX = 225;
-let playerMoved = false;
-let paddleContact = false;
+const paddleOffset = 25;
+let playerPaddleX = 225;
+let computerPaddleX = 225;
+let playerHasMoved = false;
+let ballHitsPaddle = false;
 
-const ballRadius = 5;
 let ballX = 250;
 let ballY = 350;
+const ballRadius = 5;
 
-let ballSpeedX;
 let ballSpeedY;
-let trajectoryX;
-let computerSpeed;
+let ballSpeedX;
+let ballTrajectoryX;
+let computerPaddleSpeed;
 
-let playerScore = 0;
-let computerScore = 0;
-const winningScore = 10;
-let isGameOver = false;
-let isNewGame = true;
-
-// mobile setting
-if (isMobile.matches) {
+if (isMobileDevice.matches) {
   ballSpeedY = -2;
   ballSpeedX = ballSpeedY;
-  computerSpeed = 4;
+  computerPaddleSpeed = 4;
 } else {
   ballSpeedY = -1;
   ballSpeedX = ballSpeedY;
+  computerPaddleSpeed = 3;
 }
 
-function renderCanvas() {
-  ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = "white";
+let playerPoints = 0;
+let computerPoints = 0;
+const maxPoints = 7;
+let gameIsOver = true;
+let newGame = true;
 
-  ctx.fillRect(paddleBottomX, height - 20, paddleWidth, paddleHeight);
+function drawCanvas() {
+  gameContext.fillStyle = "black";
+  gameContext.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  ctx.fillRect(paddleTopX, 10, paddleWidth, paddleHeight);
+  gameContext.fillStyle = "white";
+  gameContext.fillRect(
+    playerPaddleX,
+    canvasHeight - 20,
+    paddleWidth,
+    paddleHeight
+  );
+  gameContext.fillRect(computerPaddleX, 10, paddleWidth, paddleHeight);
 
-  ctx.beginPath(); //center line
-  ctx.setLineDash([5]);
-  ctx.moveTo(0, 350);
-  ctx.lineTo(500, 350);
-  ctx.strokeStyle = "white";
-  ctx.stroke();
+  gameContext.beginPath();
+  gameContext.setLineDash([4]);
+  gameContext.moveTo(0, 350);
+  gameContext.lineTo(500, 350);
+  gameContext.strokeStyle = "grey";
+  gameContext.stroke();
 
-  ctx.beginPath(); //ball
-  ctx.arc(ballX, ballY, ballRadius, 0, 2 * Math.PI);
-  ctx.fillStyle = "white";
-  ctx.fill();
+  gameContext.beginPath();
+  gameContext.arc(ballX, ballY, ballRadius, 2 * Math.PI, false);
+  gameContext.fillStyle = "white";
+  gameContext.fill();
 
-  ctx.font = "30px Helvetica"; //score text
-  ctx.fillText(playerScore, 20, canvas.height / 2 + 50);
-  ctx.fillText(computerScore, 20, canvas.height / 2 - 30);
+  gameContext.font = "32px Courier New";
+  gameContext.fillText(playerPoints, 20, gameCanvas.height / 2 + 50);
+  gameContext.fillText(computerPoints, 20, gameCanvas.height / 2 - 30);
 }
 
-function computerAI() {
-  if (playerMoved) {
-    if (paddleTopX + paddleDifference < ballX) {
-      paddleTopX += computerSpeed;
-    } else {
-      paddleTopX -= computerSpeed;
-    }
-  }
+function initializeCanvas() {
+  gameCanvas.width = canvasWidth;
+  gameCanvas.height = canvasHeight;
+  body.appendChild(gameCanvas);
+  drawCanvas();
 }
 
-function createCanvas() {
-  canvas.width = width;
-  canvas.height = height;
-  body.appendChild(canvas);
-  renderCanvas();
+function resetBall() {
+  ballX = canvasWidth / 2;
+  ballY = canvasHeight / 2;
+  ballSpeedY = -3;
+  ballHitsPaddle = false;
 }
 
-function animate() {
-  if (!isGameOver) {
-    renderCanvas();
-    ballMove();
-    ballBoundaries();
-    computerAI();
-    window.requestAnimationFrame(animate);
-  }
-}
-
-function ballReset() {
-  ballX = width / 2;
-  ballY = height / 2;
-  ballSpeedY = isMobile.matches ? -2 : -1;
-  ballSpeedX = ballSpeedY;
-  paddleContact = false;
-}
-
-function ballMove() {
-  ballY += ballSpeedY;
-
-  if (playerMoved && paddleContact) {
+function moveBall() {
+  ballY += -ballSpeedY;
+  if (playerHasMoved && ballHitsPaddle) {
     ballX += ballSpeedX;
   }
 }
 
-function ballBoundaries() {
+function checkBallBoundaries() {
   if (ballX < 0 && ballSpeedX < 0) {
     ballSpeedX = -ballSpeedX;
   }
-
-  if (ballX > width && ballSpeedX > 0) {
+  if (ballX > canvasWidth && ballSpeedX > 0) {
     ballSpeedX = -ballSpeedX;
   }
-
-  if (ballY > height - paddleDifference) {
-    if (ballX > paddleBottomX && ballX < paddleBottomX + paddleWidth) {
-      paddleContact = true;
-
-      if (playerMoved) {
+  if (ballY > canvasHeight - paddleOffset) {
+    if (ballX > playerPaddleX && ballX < playerPaddleX + paddleWidth) {
+      ballHitsPaddle = true;
+      if (playerHasMoved) {
         ballSpeedY -= 1;
-
         if (ballSpeedY < -5) {
           ballSpeedY = -5;
-          computerSpeed = 6;
+          computerPaddleSpeed = 6;
         }
       }
       ballSpeedY = -ballSpeedY;
-      trajectoryX = ballX - (paddleBottomX + paddleDifference);
-      ballSpeedX = trajectoryX * 0.3;
-    } else if (ballY > height) {
-      ballReset();
-      computerScore++;
-      checkGameOver();
+      ballTrajectoryX = ballX - (playerPaddleX + paddleOffset);
+      ballSpeedX = ballTrajectoryX * 0.3;
+    } else if (ballY > canvasHeight) {
+      resetBall();
+      computerPoints++;
     }
   }
-  // Bounce off computer paddle (top)
-  if (ballY < paddleDifference) {
-    if (ballX > paddleTopX && ballX < paddleTopX + paddleWidth) {
-      // Add Speed on Hit
-      if (playerMoved) {
+  if (ballY < paddleOffset) {
+    if (ballX > computerPaddleX && ballX < computerPaddleX + paddleWidth) {
+      if (playerHasMoved) {
         ballSpeedY += 1;
-        // Max Speed
         if (ballSpeedY > 5) {
           ballSpeedY = 5;
         }
       }
       ballSpeedY = -ballSpeedY;
     } else if (ballY < 0) {
-      // Reset Ball, add to Player Score
-      ballReset();
-      playerScore++;
-      checkGameOver();
+      resetBall();
+      playerPoints++;
     }
   }
+}
+
+function computerMovement() {
+  if (playerHasMoved) {
+    if (computerPaddleX + paddleOffset < ballX) {
+      computerPaddleX += computerPaddleSpeed;
+    } else {
+      computerPaddleX -= computerPaddleSpeed;
+    }
+  }
+}
+
+function displayEndGame(winner) {
+  gameCanvas.hidden = true;
+  endGameElement.textContent = "";
+  endGameElement.classList.add("game-over-container");
+  const title = document.createElement("h1");
+  title.textContent = `${winner} Wins!`;
+  const playAgainButton = document.createElement("button");
+  playAgainButton.setAttribute("onclick", "startNewGame()");
+  playAgainButton.textContent = "Play Again";
+  endGameElement.append(title, playAgainButton);
+  body.appendChild(endGameElement);
 }
 
 function checkGameOver() {
-  if (computerScore === winningScore || playerScore === winningScore) {
-    isGameOver = true;
-    let winner = playerScore === winningScore ? "Player" : "Computer";
-    showGameOverEl(winner);
+  if (playerPoints === maxPoints || computerPoints === maxPoints) {
+    gameIsOver = true;
+    const winner = playerPoints === maxPoints ? "Player" : "Computer";
+    displayEndGame(winner);
   }
 }
 
-// start game
-function startGame() {
-  if (isGameOver && !isNewGame) {
-    body.removeChild(gameOverElement);
-    canvas.hidden = false;
+function animate() {
+  drawCanvas();
+  moveBall();
+  checkBallBoundaries();
+  computerMovement();
+  checkGameOver();
+  if (!gameIsOver) {
+    window.requestAnimationFrame(animate);
   }
+}
 
-  isGameOver = false;
-  isNewGame = false;
-  playerScore = 0;
-  computerScore = 0;
-
-  ballReset();
-  createCanvas();
+function startNewGame() {
+  if (gameIsOver && !newGame) {
+    body.removeChild(endGameElement);
+    gameCanvas.hidden = false;
+  }
+  gameIsOver = false;
+  newGame = false;
+  playerPoints = 0;
+  computerPoints = 0;
+  resetBall();
+  initializeCanvas();
   animate();
-
-  canvas.addEventListener("mousemove", (e) => {
-    playerMoved = true;
-
-    paddleBottomX = e.clientX - canvasPosition - paddleDifference;
-
-    if (paddleBottomX < paddleDifference) {
-      paddleBottomX = 0;
+  gameCanvas.addEventListener("mousemove", (e) => {
+    playerHasMoved = true;
+    playerPaddleX = e.clientX - canvasXPosition - paddleOffset;
+    if (playerPaddleX < paddleOffset) {
+      playerPaddleX = 0;
     }
-    if (paddleBottomX > width - paddleWidth) {
-      paddleBottomX = width - paddleWidth;
+    if (playerPaddleX > canvasWidth - paddleWidth) {
+      playerPaddleX = canvasWidth - paddleWidth;
     }
-
-    canvas.style.cursor = "none";
+    gameCanvas.style.cursor = "none";
   });
 }
 
-function showGameOverEl(winner) {
-  canvas.hidden = true;
-
-  gameOverElement.textContent = "";
-  gameOverElement.classList.add("game-over-container");
-
-  const title = document.createElement("h1");
-  title.textContent = `${winner} Wins`;
-
-  const replayButton = document.createElement("button");
-  replayButton.setAttribute("onclick", "startGame()");
-  replayButton.textContent = "Play Again";
-
-  gameOverElement.append(title, replayButton);
-  body.appendChild(gameOverElement);
-}
-
-// start game on page load
-startGame();
+startNewGame();
