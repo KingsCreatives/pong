@@ -4,12 +4,11 @@ const ctx = canvas.getContext("2d");
 
 const width = 500;
 const height = 700;
-const screenWidth = window.screen.width;
+const screenWidth = window.innerWidth;
 const canvasPosition = screenWidth / 2 - width / 2;
-const isMobile = window.matchMedia(`(max-width: 500px)`);
+const isMobile = window.matchMedia(`(max-width: 600px)`);
 const gameOverElement = document.createElement("div");
 
-// paddle styles
 const paddleHeight = 10;
 const paddleWidth = 50;
 const paddleDifference = 25;
@@ -18,22 +17,19 @@ let paddleTopX = 225;
 let playerMoved = false;
 let paddleContact = false;
 
-// ball styles
 const ballRadius = 5;
 let ballX = 250;
 let ballY = 350;
 
-// game variables
 let ballSpeedX;
 let ballSpeedY;
 let trajectoryX;
 let computerSpeed;
 
-// Score
 let playerScore = 0;
 let computerScore = 0;
 const winningScore = 10;
-let isGameOver = true;
+let isGameOver = false;
 let isNewGame = true;
 
 // mobile setting
@@ -47,38 +43,29 @@ if (isMobile.matches) {
 }
 
 function renderCanvas() {
-  //   console.log("hi");
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, width, height);
-
   ctx.fillStyle = "white";
 
-  //   player paddle
   ctx.fillRect(paddleBottomX, height - 20, paddleWidth, paddleHeight);
 
-  //   computer paddle
   ctx.fillRect(paddleTopX, 10, paddleWidth, paddleHeight);
 
-  //   center line
-  ctx.beginPath();
+  ctx.beginPath(); //center line
   ctx.setLineDash([5]);
   ctx.moveTo(0, 350);
   ctx.lineTo(500, 350);
   ctx.strokeStyle = "white";
   ctx.stroke();
-  ctx.closePath();
 
-  //  ball
-  ctx.beginPath();
+  ctx.beginPath(); //ball
   ctx.arc(ballX, ballY, ballRadius, 0, 2 * Math.PI);
   ctx.fillStyle = "white";
   ctx.fill();
-  ctx.closePath();
 
-  //   score
-  ctx.font = "30px Helvetica";
+  ctx.font = "30px Helvetica"; //score text
   ctx.fillText(playerScore, 20, canvas.height / 2 + 50);
-  ctx.fillText(computerScore, 20, canvas.height / 2 - 50);
+  ctx.fillText(computerScore, 20, canvas.height / 2 - 30);
 }
 
 function computerAI() {
@@ -99,22 +86,25 @@ function createCanvas() {
 }
 
 function animate() {
-  renderCanvas();
-  ballMove();
-  ballBoundaries();
-  computerAI();
-  window.requestAnimationFrame(animate)
+  if (!isGameOver) {
+    renderCanvas();
+    ballMove();
+    ballBoundaries();
+    computerAI();
+    window.requestAnimationFrame(animate);
+  }
 }
 
 function ballReset() {
   ballX = width / 2;
   ballY = height / 2;
-  ballSpeedY = -3;
+  ballSpeedY = isMobile.matches ? -2 : -1;
+  ballSpeedX = ballSpeedY;
   paddleContact = false;
 }
 
 function ballMove() {
-  ballY += -ballSpeedY;
+  ballY += ballSpeedY;
 
   if (playerMoved && paddleContact) {
     ballX += ballSpeedX;
@@ -148,6 +138,7 @@ function ballBoundaries() {
     } else if (ballY > height) {
       ballReset();
       computerScore++;
+      checkGameOver();
     }
   }
   // Bounce off computer paddle (top)
@@ -166,20 +157,36 @@ function ballBoundaries() {
       // Reset Ball, add to Player Score
       ballReset();
       playerScore++;
+      checkGameOver();
     }
+  }
+}
+
+function checkGameOver() {
+  if (computerScore === winningScore || playerScore === winningScore) {
+    isGameOver = true;
+    let winner = playerScore === winningScore ? "Player" : "Computer";
+    showGameOverEl(winner);
   }
 }
 
 // start game
 function startGame() {
+  if (isGameOver && !isNewGame) {
+    body.removeChild(gameOverElement);
+    canvas.hidden = false;
+  }
+
+  isGameOver = false;
+  isNewGame = false;
   playerScore = 0;
   computerScore = 0;
 
   ballReset();
   createCanvas();
-  animate()
+  animate();
 
-  canvas.addEventListener("mouseover", (e) => {
+  canvas.addEventListener("mousemove", (e) => {
     playerMoved = true;
 
     paddleBottomX = e.clientX - canvasPosition - paddleDifference;
@@ -193,6 +200,23 @@ function startGame() {
 
     canvas.style.cursor = "none";
   });
+}
+
+function showGameOverEl(winner) {
+  canvas.hidden = true;
+
+  gameOverElement.textContent = "";
+  gameOverElement.classList.add("game-over-container");
+
+  const title = document.createElement("h1");
+  title.textContent = `${winner} Wins`;
+
+  const replayButton = document.createElement("button");
+  replayButton.setAttribute("onclick", "startGame()");
+  replayButton.textContent = "Play Again";
+
+  gameOverElement.append(title, replayButton);
+  body.appendChild(gameOverElement);
 }
 
 // start game on page load
